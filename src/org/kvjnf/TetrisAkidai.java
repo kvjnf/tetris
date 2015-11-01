@@ -15,6 +15,10 @@ import org.psnbtech.TileType;
 
 public class TetrisAkidai extends JFrame{
 	
+	private static final long FRAME_TIME = 1000L / 50L;
+	
+	private static final int TYPE_COUNT = BlockType.values().length;
+	
 	/**
 	 * The BoardPanel instance.
 	 */
@@ -24,6 +28,8 @@ public class TetrisAkidai extends JFrame{
 	 * The SidePanel instance.
 	 */
 	private SidePanel side;
+	
+	private int score;
 	
 	/**
 	 * gameがポーズされているかの判定
@@ -64,7 +70,11 @@ public class TetrisAkidai extends JFrame{
 	
 	private Clock logicTimer;
 	
+	private int level;
+	
 	private boolean isNewGame;
+	
+	private boolean isGameOver;
 	
 	private float gameSpeed;
 	
@@ -182,11 +192,92 @@ public class TetrisAkidai extends JFrame{
 			if(logicTimer.hasElapsedCycle()) {
 				updateGame();
 			}
+			
+			if(dropCooldown > 0){
+				dropCooldown--;
+			}
+			
+			renderGame();
+			
+			
 		}
 	}
 	
 	private void updateGame(){
+		/**
+		 * ブロックの位置が次の行に下げられるかを判定する
+		 */
+		if(board.isValidAndEmpty(currentType, currentCol, currentRow + 1, currentRotation)){
+			currentRow++;//trueならば、現在の行から次の行へ
+		} else {
+			
+			/**
+			 * falseなので、別のブロックか枠の底に到達したので
+			 * 新たにブロックをおとす
+			 */
+			board.addPiece(currentType, currentCol, currentRow, currentRotation);
+			
+			/**
+			 * ブロックの追加でラインが消えたかどうかの判定
+			 * もし消えたラインがあるのならば
+			 * プレイヤーのスコアをあげる
+			 * [1 = 100pts, 2 = 200pts, 3 = 400pts, 4 = 800pts]
+			 */
+			int cleared = board.checkLines();
+			if(cleared > 0){
+				score += 50 << cleared; //消されたラインの数だけ左シフト
+			}
+			
+			/**
+			 * 次のブロックから僅かにスピードをあげる
+			 */
+			gameSpeed += 0.035f;
+			logicTimer.setCyclesPerSecond(gameSpeed);
+			logicTimer.reset();
+			
+			/**
+			 * 次のブロックがすぐに落ちてこないようにバッファを持たせる
+			 * (~0.5 second buffer).
+			 */
+			dropCooldown = 25;
+			
+			/**
+			 * サイドパネルに表示する難易度をあげる
+			 */
+			level = (int)(gameSpeed * 1.70f);
+			
+			spawnPiece();
+		}
+	}
+	
+	/**
+	 * 強制的に再描画させる
+	 */
+	private void renderGame(){
+		board.repaint();
+		side.repaint();
+	}
+	
+	/**
+	 * 新しいブロックを創る
+	 * ブロックのための変数をリセットしてデフォルトの値を変える
+	 */
+	private void spawnPiece(){
+
+		this.currentType = nextType;
+		this.currentCol = currentType.getSpawnColumn();
+		this.currentRow = currentType.getSpawnRow();
+		this.currentRotation = 0;
+		this.nextType = BlockType.values()[random.nextInt(TYPE_COUNT)];
 		
+		/**
+		 * ブロックが生成された場所にブロックが存在する場合
+		 * ゲームオーバーにする。
+		 */
+		if(!board.isValidAndEmpty(currentType, currentCol, currentRow, currentRotation)){
+			this.isGameOver = true;
+			logicTimer.setPaused(true);
+		}
 	}
 	
 	public boolean isPaused() {
