@@ -197,7 +197,10 @@ public class TetrisAkidai extends JFrame{
 				dropCooldown--;
 			}
 			
+			//**
+			
 			renderGame();
+			
 			
 			
 		}
@@ -286,6 +289,38 @@ public class TetrisAkidai extends JFrame{
 	
 	public boolean isNewGame() {
 		return isNewGame;
+	}
+	
+	public boolean isGameOver() {
+		return isGameOver;
+	}
+	
+	public int getScore() {
+		return score;
+	}
+	
+	public int getLevel() {
+		return level;
+	}
+	
+	public BlockType getPieceType() {
+		return currentType;
+	}
+	
+	public BlockType getNextPieceType() {
+		return nextType;
+	}
+	
+	public int getPieceCol() {
+		return currentCol;
+	}
+	
+	public int getPieceRow() {
+		return currentRow;
+	}
+	
+	public int getPieceRotation() {
+		return currentRotation;
 	}
 	/**
 	 * エントリーポイント

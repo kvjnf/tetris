@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics;
+import java.awt.image.TileObserver;
 
 import javax.swing.JPanel;
 
@@ -36,6 +37,18 @@ public class BoardPanel extends JPanel {
 	
 	public static final int BLOCK_SIZE = 24;
 	
+	public static final int SHADE_WIDTH = 4;
+	
+	/**
+	 * ゲーム盤におけるx座標の中央値
+	 */
+	private static final int CENTER_X = COL_COUNT * BLOCK_SIZE / 2;
+	
+	/**
+	 * ゲーム盤におけるy座標の中央値
+	 */
+	private static final int CENTER_Y = VISIBLE_ROW_COUNT * BLOCK_SIZE / 2; 
+	
 	/**
 	 * ブロックの高さの総計
 	 */
@@ -45,6 +58,17 @@ public class BoardPanel extends JPanel {
 	 * ブロックの幅の総計 
 	 */
 	public static final int PANEL_WIDTH = COL_COUNT * BLOCK_SIZE + BORDER_WIDTH * 2;
+	
+	/**
+	 * 大きなフォント
+	 */
+	private static final Font LARGE_FONT = new Font("Tahoma", Font.BOLD, 16);
+	
+	/**
+	 * 小さなフォント
+	 */
+	private static final Font SMALL_FONT = new Font("Tahoma", Font.BOLD, 12);
+	
 	
 	private TetrisAkidai tetris;
 	
@@ -166,6 +190,116 @@ public class BoardPanel extends JPanel {
 	 */
 	private BlockType getBlocks(int x, int y) {
 		return blocks[y][x];
+	}
+	
+	@Override
+	public void paintComponent(Graphics g){
+		super.paintComponent(g);
+		
+		//位置を平行移動させる
+		g.translate(BORDER_WIDTH, BORDER_WIDTH);
+		
+		/**
+		 * 現在のゲーム状況によって、ボードに書き込む
+		 */
+		if(tetris.isPaused()){//ユーザーがポーズした時に処理
+			
+			g.setFont(LARGE_FONT);
+			g.setColor(Color.WHITE);
+			String msg = "ぽーず中";
+			g.drawString(msg, CENTER_X - g.getFontMetrics().stringWidth(msg) / 2, CENTER_Y);
+			
+		} else if(tetris.isNewGame() || tetris.isGameOver()){//新規ゲームスタート時、またはゲームオーバ時に再描画
+			
+			g.setFont(LARGE_FONT);
+			g.setColor(Color.WHITE);
+			
+			String msg = tetris.isNewGame()? "akiTETRIS" : "げーむおーばー";
+			g.drawString(msg, CENTER_X - g.getFontMetrics().stringWidth(msg) / 2, 150);
+			g.setFont(SMALL_FONT);
+			msg = "Press Enter to Play" + (tetris.isNewGame()? "" : "Again");
+			g.drawString(msg, CENTER_X - g.getFontMetrics().stringWidth(msg) / 2, 300);
+		
+		} else {
+			
+			//ブロックをボードに描画
+			for(int x = 0; x < COL_COUNT; x++){
+				for(int y = HIDDEN_ROW_COUNT; y < ROW_COUNT; y++){
+					BlockType block = getBlocks(x, y);
+					if(block != null){
+						drawBlock(block, x * BLOCK_SIZE, (y - HIDDEN_ROW_COUNT) * BLOCK_SIZE, g);
+					}
+				}
+			}
+			
+			/**
+			 * 現在のブロックを描画する
+			 */
+			BlockType type = tetris.getPieceType();
+			int pieceCol = tetris.getPieceCol();
+			int pieceRow = tetris.getPieceRow();
+			int rotation = tetris.getPieceRotation();
+			
+			//ピースをゲーム盤に描画
+			for(int col = 0; col < type.getDimension(); col++){
+				for(int row = 0; row < type.getDimension(); row++){
+					if(pieceRow + row >= 2 && type.isBlock(col, row, rotation)){
+						drawBlock(type, (pieceCol + col) * BLOCK_SIZE, (pieceRow + row - HIDDEN_ROW_COUNT) * BLOCK_SIZE, g);
+					}
+				}
+			}
+			
+			/**
+			 * 
+			 */
+			Color base = type.getBaseColor();
+		}
+	}
+	
+	/**
+	 * ブロックの描画
+	 * @param type
+	 * @param x
+	 * @param y
+	 * @param g
+	 */
+	private void drawBlock(BlockType type, int x, int y, Graphics g){
+		drawBlock(type.getBaseColor(), type.getLightColor(), type.getDarkColor(), x, y, g);
+	}
+	
+	/**
+	 * ブロックの描画
+	 * @param base
+	 * @param light
+	 * @param dark
+	 * @param x
+	 * @param y
+	 * @param g
+	 */
+	private void drawBlock(Color base, Color light, Color dark, int x, int y, Graphics g){
+		
+		/**
+		 * ブロックの前範囲をbaseColorで埋める
+		 */
+		g.setColor(base);
+		g.fillRect(x, y, BLOCK_SIZE, BLOCK_SIZE);
+		
+		/**
+		 * ブロックの底と右側を黒の影で埋める
+		 */
+		g.setColor(dark);
+		g.fillRect(x, y + BLOCK_SIZE - SHADE_WIDTH, BLOCK_SIZE, BLOCK_SIZE);
+		g.fillRect(x + BLOCK_SIZE, y, SHADE_WIDTH, BLOCK_SIZE);
+		
+		/**
+		 * topとleftの端を明るい影で埋める
+		 */
+		g.setColor(light);
+		for(int i = 0; i < SHADE_WIDTH; i++) {
+			g.drawLine(x, y + i, x + BLOCK_SIZE - i - 1, y + i);
+			g.drawLine(x + i, y, x + i, y + BLOCK_SIZE - i - 1);
+		}
+		
 	}
 	
 }

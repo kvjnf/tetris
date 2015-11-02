@@ -227,7 +227,7 @@ public enum BlockType{
 		this.spawnRow = getTopInset(0);
 	}
 	
-	public Color getbaColor() {
+	public Color getBaseColor() {
 		return baseColor;
 	}
 	
