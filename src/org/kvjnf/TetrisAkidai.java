@@ -9,19 +9,21 @@ import javax.swing.JFrame;
 
 import org.kvjnf.BoardPanel;
 import org.kvjnf.SidePanel;
-import org.psnbtech.Clock;
-import org.psnbtech.TileType;
+import org.kvjnf.Clock;
+import org.kvjnf.BlockType;
 
 
 public class TetrisAkidai extends JFrame{
 	
+	private static final long serialVersionUID = -142869693720626412L;
+
 	private static final long FRAME_TIME = 1000L / 50L;
 	
 	private static final int TYPE_COUNT = BlockType.values().length;
 	
 	/**
 	 * The BoardPanel instance.
-	 */
+	 */ 
 	private BoardPanel board;
 	
 	/**
@@ -111,7 +113,7 @@ public class TetrisAkidai extends JFrame{
 				 */
 				case KeyEvent.VK_DOWN:
 					if(!isPaused && dropCooldown == 0){
-						
+						logicTimer.setCyclesPerSecond(25.0f);
 					}
 					break;
 				
@@ -119,38 +121,56 @@ public class TetrisAkidai extends JFrame{
 				 * Move Left
 				 */
 				case KeyEvent.VK_LEFT:
+					if(!isPaused && board.isValidAndEmpty(currentType, currentCol - 1, currentRow, currentRotation)){
+						currentCol--;
+					}
 					break;
 				
 				/**
 				 * Move Right
 				 */
 				case KeyEvent.VK_RIGHT:
+					if(!isPaused && board.isValidAndEmpty(currentType, currentCol + 1, currentRow, currentRotation)){
+						currentCol++;
+					}
 					break;
 				
 				/**
-				 * 反時計回りに回転
+				 * 反時計回りに回転 0 3 2 1 0 3 2 1...
 				 */
 				case KeyEvent.VK_ALT:
+					if(!isPaused){
+						rotatePiece((currentRotation == 0) ? 3: currentRotation - 1);
+					}
 					break;
 					
 				/**
-				 * 時計回りに回転
+				 * 時計回りに回転 0 1 2 3 0 1 2 3...
 				 */
 				case KeyEvent.VK_SHIFT:
+					if(!isPaused){
+						rotatePiece((currentRotation == 3)? 0 : currentRotation + 1);
+					}
 					break;
 					
 				/**
 				 * ゲームのPAUSE
 				 */
 				case KeyEvent.VK_P:
+					if(!isGameOver && !isNewGame){
+						isPaused = !isPaused;
+						logicTimer.setPaused(isPaused);
+					}
 					break;
 				
 				/**
 				 * ゲームのSTART
 				 */
 				case KeyEvent.VK_ENTER:
+					if(isGameOver || isNewGame){
+						resetGame();
+					}
 					break;
-				
 				}
 				
 			}
@@ -161,6 +181,8 @@ public class TetrisAkidai extends JFrame{
 				switch(e.getKeyCode()){
 					
 				case KeyEvent.VK_DOWN:
+					logicTimer.setCyclesPerSecond(gameSpeed);
+					logicTimer.reset();
 					break;
 				
 				}
@@ -168,6 +190,12 @@ public class TetrisAkidai extends JFrame{
 			}
 			
 		});
+		
+		//BoardPanel SidePanelのサイズを決めてから画面の中央に配置する
+		pack();
+		setLocationRelativeTo(null);
+		setVisible(true);
+		
 	}
 	
 	public void startGame(){
@@ -197,12 +225,16 @@ public class TetrisAkidai extends JFrame{
 				dropCooldown--;
 			}
 			
-			//**
-			
 			renderGame();
 			
-			
-			
+			long delta = (System.nanoTime() - start) / 1000000L;//経過ミリ秒
+			if(delta < FRAME_TIME){
+				try{
+					Thread.sleep(FRAME_TIME - delta);
+				} catch (Exception e){
+					e.printStackTrace();
+				}
+			}
 		}
 	}
 	
@@ -262,6 +294,22 @@ public class TetrisAkidai extends JFrame{
 	}
 	
 	/**
+	 * リセットしてニューゲーム状態に戻す
+	 */
+	private void resetGame(){
+		this.level = 1;
+		this.score = 0;
+		this.gameSpeed = 1.0f;
+		this.nextType = BlockType.values()[random.nextInt(TYPE_COUNT)];
+		this.isNewGame = false;
+		this.isGameOver = false;
+		board.clear();
+		logicTimer.reset();
+		logicTimer.setCyclesPerSecond(gameSpeed);
+		spawnPiece();
+	}
+	
+	/**
 	 * 新しいブロックを創る
 	 * ブロックのための変数をリセットしてデフォルトの値を変える
 	 */
@@ -280,6 +328,41 @@ public class TetrisAkidai extends JFrame{
 		if(!board.isValidAndEmpty(currentType, currentCol, currentRow, currentRotation)){
 			this.isGameOver = true;
 			logicTimer.setPaused(true);
+		}
+	}
+	
+	/**
+	 * ブロックを回転させる
+	 * @param newRotation
+	 */
+	private void rotatePiece(int newRotation) {
+		int newColumn = currentCol;
+		int newRow = currentRow;
+		
+		int left = currentType.getLeftInset(newRotation);
+		int right = currentType.getRightInset(newRotation);
+		int top = currentType.getTopInset(newRotation);
+		int bottom = currentType.getBottomInset(newRotation);
+		
+		//現在のピースが左右のから離れすぎていた場合には端から動かす。
+		if(currentCol < -left){
+			newColumn -= currentCol - left;
+		} else if(currentCol + currentType.getDimension() - right >= BoardPanel.COL_COUNT){
+			newColumn -= (currentCol + currentType.getDimension() - right) - BoardPanel.COL_COUNT + 1;
+		}
+		
+		//現在のピースが上下から離れすぎていた場合には端から動かす。
+		if(currentRow < -top){
+			newRow -= currentRow - top;
+		} else if(currentRow + currentType.getDimension() - bottom >= BoardPanel.ROW_COUNT){
+			newRow -= (currentRow + currentType.getDimension() - bottom) - BoardPanel.ROW_COUNT + 1;
+		}
+		
+		//回転した時にぶつからないかどうか
+		if(board.isValidAndEmpty(currentType, newColumn, newRow, newRotation)){
+			currentRotation = newRotation;
+			currentRow = newRow;
+			currentCol = newColumn;
 		}
 	}
 	
@@ -327,7 +410,7 @@ public class TetrisAkidai extends JFrame{
 	 * 新規ゲームのスタートを行う
 	 * @param args Unused
 	 */
-	public static void main(String args){
+	public static void main(String[] args){
 		TetrisAkidai tetris = new TetrisAkidai();
 		tetris.startGame();
 	}

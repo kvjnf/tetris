@@ -284,7 +284,7 @@ public enum BlockType{
 		for(int y = 0; y < dimension; y++){
 			for(int x = 0; x < dimension; x++){
 				if(isBlock(x, y, rotation)){
-					return dimension - y;
+					return y;
 				}
 			}
 		}

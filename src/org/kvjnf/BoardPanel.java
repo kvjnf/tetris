@@ -4,14 +4,15 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics;
-import java.awt.image.TileObserver;
 
 import javax.swing.JPanel;
 
-import org.psnbtech.TileType;
+import org.kvjnf.BlockType;
 
 public class BoardPanel extends JPanel {
-	
+
+	private static final long serialVersionUID = -1842342739248458931L;
+
 	public static final int COLOR_MIN = 35;
 	
 	public static final int COLOR_MAX = 255 - COLOR_MIN;
@@ -50,14 +51,14 @@ public class BoardPanel extends JPanel {
 	private static final int CENTER_Y = VISIBLE_ROW_COUNT * BLOCK_SIZE / 2; 
 	
 	/**
-	 * ブロックの高さの総計
-	 */
-	public static final int PANEL_HEIGHT = VISIBLE_ROW_COUNT * BLOCK_SIZE + BORDER_WIDTH * 2;
-	
-	/**
 	 * ブロックの幅の総計 
 	 */
 	public static final int PANEL_WIDTH = COL_COUNT * BLOCK_SIZE + BORDER_WIDTH * 2;
+	
+	/**
+	 * ブロックの高さの総計
+	 */
+	public static final int PANEL_HEIGHT = VISIBLE_ROW_COUNT * BLOCK_SIZE + BORDER_WIDTH * 2;
 	
 	/**
 	 * 大きなフォント
@@ -81,6 +82,15 @@ public class BoardPanel extends JPanel {
 		
 		setPreferredSize(new Dimension(PANEL_WIDTH, PANEL_HEIGHT));
 		setBackground(Color.BLACK);
+	}
+	
+	// ゲーム画面のリセット
+	public void clear() {
+		for (int i = 0; i < ROW_COUNT; i++) {
+			for (int j = 0; j < COL_COUNT; j++) {
+				blocks[i][j] = null;
+			}
+		}
 	}
 	
 	/**
@@ -124,7 +134,9 @@ public class BoardPanel extends JPanel {
 	public void addPiece(BlockType type, int x, int y, int rotation){
 		for(int col = 0; col < type.getDimension(); col++){
 			for(int row = 0; row < type.getDimension(); row++){
-				setBlocks(col + x, row + y, type);
+				if(type.isBlock(col, row, rotation)){
+					setBlocks(col + x, row + y, type);	
+				}
 			}
 		}
 	}
@@ -217,8 +229,14 @@ public class BoardPanel extends JPanel {
 			String msg = tetris.isNewGame()? "akiTETRIS" : "げーむおーばー";
 			g.drawString(msg, CENTER_X - g.getFontMetrics().stringWidth(msg) / 2, 150);
 			g.setFont(SMALL_FONT);
-			msg = "Press Enter to Play" + (tetris.isNewGame()? "" : "Again");
+//			msg = "エンターキーを押してね" + (tetris.isNewGame()? "" : "もう一度プレーできるお");
+//			g.drawString(msg, CENTER_X - g.getFontMetrics().stringWidth(msg) / 2, 300);
+			msg = "エンターキーを押してね";
 			g.drawString(msg, CENTER_X - g.getFontMetrics().stringWidth(msg) / 2, 300);
+			if(!tetris.isNewGame()){
+				String msgGameOver = "もう一度ぷれーできるお";
+				g.drawString(msgGameOver, CENTER_X - g.getFontMetrics().stringWidth(msgGameOver) / 2, 300 + g.getFontMetrics().getHeight());
+			}
 		
 		} else {
 			
@@ -250,10 +268,46 @@ public class BoardPanel extends JPanel {
 			}
 			
 			/**
+			 * ピースの移動先を半透明のピースで表す
 			 * 
 			 */
 			Color base = type.getBaseColor();
+			base = new Color(base.getRed(), base.getGreen(), base.getBlue(), 20);
+			for(int lowest = pieceRow; lowest < ROW_COUNT; lowest++){
+				//もしも衝突がなければ、次の行を試す
+				if(isValidAndEmpty(type, pieceCol, lowest, rotation)){
+					continue;
+				}
+				
+				//衝突が起きる行の一つ前に描画するため
+				lowest--;
+				
+				//描画する
+				for(int col = 0; col < type.getDimension(); col++){
+					for(int row = 0; row < type.getDimension(); row++){
+						if(lowest + row >= 2 && type.isBlock(col, row, rotation)){
+							drawBlock(base, base.brighter(), base.darker(), (pieceCol + col) * BLOCK_SIZE, (lowest + row - HIDDEN_ROW_COUNT) * BLOCK_SIZE, g);
+						}
+					}
+				}
+				
+				break;
+			}
+			
+			g.setColor(Color.DARK_GRAY);
+			for (int x = 0; x < COL_COUNT; x++) {
+				for (int y = 0; y < VISIBLE_ROW_COUNT; y++) {
+					g.drawLine(0, y * BLOCK_SIZE, COL_COUNT * BLOCK_SIZE, y * BLOCK_SIZE);
+					g.drawLine(x * BLOCK_SIZE, 0, x * BLOCK_SIZE, VISIBLE_ROW_COUNT * BLOCK_SIZE);
+				}
+			}
 		}
+		
+		/**
+		 * 外枠を描画する
+		 */
+		g.setColor(Color.WHITE);
+		g.drawRect(0, 0, BLOCK_SIZE * COL_COUNT, BLOCK_SIZE * VISIBLE_ROW_COUNT);
 	}
 	
 	/**
@@ -288,8 +342,8 @@ public class BoardPanel extends JPanel {
 		 * ブロックの底と右側を黒の影で埋める
 		 */
 		g.setColor(dark);
-		g.fillRect(x, y + BLOCK_SIZE - SHADE_WIDTH, BLOCK_SIZE, BLOCK_SIZE);
-		g.fillRect(x + BLOCK_SIZE, y, SHADE_WIDTH, BLOCK_SIZE);
+		g.fillRect(x, y + BLOCK_SIZE - SHADE_WIDTH, BLOCK_SIZE, SHADE_WIDTH);
+		g.fillRect(x + BLOCK_SIZE - SHADE_WIDTH, y, SHADE_WIDTH, BLOCK_SIZE);
 		
 		/**
 		 * topとleftの端を明るい影で埋める
